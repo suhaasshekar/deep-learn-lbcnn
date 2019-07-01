@@ -40,7 +40,7 @@ valid_size = 0.2
 
 # convert data to a normalized torch.FloatTensor
 transform = transforms.Compose([
-    transforms.CenterCrop(900),
+    #transforms.CenterCrop(900),
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
@@ -110,7 +110,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.01)
 
 # number of epochs to train the model
-n_epochs = 30
+n_epochs = 2
 
 valid_loss_min = np.Inf  # track change in validation loss
 
@@ -134,6 +134,10 @@ for epoch in range(1, n_epochs + 1):
         print(data.shape)
         output = model(data)
         # calculate the batch loss
+        print()
+        print(output.shape)
+        print(target.shape)
+        print(target)
         loss = criterion(output, target)
         # backward pass: compute gradient of the loss with respect to model parameters
         loss.backward()
