@@ -25,6 +25,7 @@ def load_image(image_path):
 
 # check if CUDA is available
 train_on_gpu = torch.cuda.is_available()
+#train_on_gpu = False
 
 if not train_on_gpu:
     print('CUDA is not available.  Training on CPU ...')
@@ -34,7 +35,7 @@ else:
 # number of subprocesses to use for data loading
 num_workers = 0
 # how many samples per batch to load
-batch_size = 20
+batch_size = 4
 # percentage of training set to use as validation
 valid_size = 0.2
 
@@ -45,7 +46,7 @@ transform = transforms.Compose([
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
-DATA_PATH_TRAIN = Path("/home/ss20/sample-data")
+DATA_PATH_TRAIN = Path("/home/ss20/dataset")
 
 train_data = datasets.ImageFolder(root=DATA_PATH_TRAIN, transform=transform, loader=load_image)
 train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -110,7 +111,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.01)
 
 # number of epochs to train the model
-n_epochs = 2
+n_epochs = 10
 
 valid_loss_min = np.Inf  # track change in validation loss
 
@@ -131,13 +132,10 @@ for epoch in range(1, n_epochs + 1):
         # clear the gradients of all optimized variables
         optimizer.zero_grad()
         # forward pass: compute predicted outputs by passing inputs to the model
-        print(data.shape)
+
         output = model(data)
         # calculate the batch loss
-        print()
-        print(output.shape)
-        print(target.shape)
-        print(target)
+
         loss = criterion(output, target)
         # backward pass: compute gradient of the loss with respect to model parameters
         loss.backward()
