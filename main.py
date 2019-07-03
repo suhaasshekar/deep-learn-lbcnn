@@ -16,6 +16,7 @@ from colour_demosaicing import demosaicing_CFA_Bayer_bilinear as demosaic
 import matplotlib.pyplot as plt
 import lbcnn
 import torch.optim as optim
+import gc
 
 def load_image(image_path):
     img = Image.open(image_path)
@@ -33,9 +34,9 @@ else:
     print('CUDA is available!  Training on GPU ...')
 
 # number of subprocesses to use for data loading
-num_workers = 0
+num_workers = 10
 # how many samples per batch to load
-batch_size = 4
+batch_size = 5
 # percentage of training set to use as validation
 valid_size = 0.2
 
@@ -56,7 +57,9 @@ num_train = len(train_data)
 indices = list(range(num_train))
 np.random.shuffle(indices)
 split = int(np.floor(valid_size * num_train))
-train_idx, valid_idx = indices[split:], indices[:split]
+# train_idx, valid_idx = indices[split:], indices[:split]
+train_idx, valid_idx = indices[:200], indices[200:300]
+#print(split)
 
 # define samplers for obtaining training and validation batches
 train_sampler = SubsetRandomSampler(train_idx)
@@ -98,7 +101,7 @@ classes = ['rain', 'sunny']
 
 # create a complete CNN
 model = lbcnn.Net()
-print(model)
+#print(model)
 
 # move tensors to GPU if CUDA is available
 if train_on_gpu:
@@ -111,7 +114,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.01)
 
 # number of epochs to train the model
-n_epochs = 10
+n_epochs = 2
 
 valid_loss_min = np.Inf  # track change in validation loss
 
@@ -125,6 +128,8 @@ for epoch in range(1, n_epochs + 1):
     # train the model #
     ###################
     model.train()
+    print("Training the model..")
+    counter = 0
     for data, target in train_loader:
         # move tensors to GPU if CUDA is available
         if train_on_gpu:
@@ -134,8 +139,10 @@ for epoch in range(1, n_epochs + 1):
         # forward pass: compute predicted outputs by passing inputs to the model
 
         output = model(data)
-        # calculate the batch loss
+        counter += batch_size
+        print("Trained - %d" % counter)
 
+        # calculate the batch loss
         loss = criterion(output, target)
         # backward pass: compute gradient of the loss with respect to model parameters
         loss.backward()
@@ -143,21 +150,28 @@ for epoch in range(1, n_epochs + 1):
         optimizer.step()
         # update training loss
         train_loss += loss.item() * data.size(0)
+        del data, target
+        torch.cuda.empty_cache()
+        gc.collect()
 
     ######################
     # validate the model #
     ######################
     model.eval()
-    for data, target in valid_loader:
-        # move tensors to GPU if CUDA is available
-        if train_on_gpu:
-            data, target = data.cuda(), target.cuda()
-        # forward pass: compute predicted outputs by passing inputs to the model
-        output = model(data)
-        # calculate the batch loss
-        loss = criterion(output, target)
-        # update average validation loss
-        valid_loss += loss.item() * data.size(0)
+    with torch.no_grad():
+        for data, target in valid_loader:
+            # move tensors to GPU if CUDA is available
+            if train_on_gpu:
+                data, target = data.cuda(), target.cuda()
+            # forward pass: compute predicted outputs by passing inputs to the model
+            output = model(data)
+            # calculate the batch loss
+            loss = criterion(output, target)
+            # update average validation loss
+            valid_loss += loss.item() * data.size(0)
+            del data, target
+            torch.cuda.empty_cache()
+            gc.collect()
 
     # calculate average losses
     train_loss = train_loss / len(train_loader.sampler)

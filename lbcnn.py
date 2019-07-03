@@ -93,7 +93,7 @@ class Net(nn.Module):
 
         self.layer2 = nn.ReLU()
 
-        self.layer3 = nn.Conv2d(8, 1, 1, padding=0)
+        self.layer3 = nn.Conv2d(8, 1, 1, stride=1, padding=0)
 
         self.layer4 = nn.Conv2d(1, 8, 3, padding=1, bias=False)
 
@@ -110,9 +110,12 @@ class Net(nn.Module):
     def forward(self, x):
         x = self.first_lbc_layer(x)
 
-        x = self.lbc_layers(x)
+        #x = self.layer4(x)
+        #x = self.layer2(x)
+        #x = self.layer3(x)
 
-        for i in range(9):
+
+        for i in range(10):
             x = self.lbc_layers(x)
         x = self.pool(x)
 
