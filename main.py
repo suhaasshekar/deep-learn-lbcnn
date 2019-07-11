@@ -36,13 +36,13 @@ else:
 # number of subprocesses to use for data loading
 num_workers = 10
 # how many samples per batch to load
-batch_size = 5
+batch_size = 100
 # percentage of training set to use as validation
 valid_size = 0.2
 
 # convert data to a normalized torch.FloatTensor
 transform = transforms.Compose([
-    #transforms.CenterCrop(900),
+    transforms.Resize((256,256)),
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
@@ -295,3 +295,68 @@ outfile.write('\nTest Accuracy (Overall): %2d%% (%2d/%2d)' % (
     np.sum(class_correct), np.sum(class_total)))
 
 outfile.close()
+
+
+# no_of_classes = 2
+#
+# def sampler_(labels):
+#     #_, counts = np.unique(labels, return_counts=True)
+#
+#     counts = np.array([len(np.where(labels == t)[0]) for t in np.array([0,1])])
+#     print(counts)
+#     weights = 1.0 / torch.tensor(counts, dtype=torch.float)
+#     print(weights)
+#     sample_weights = np.array([weights[t] for t in labels])
+#     #sample_weights = weights[labels]
+#     print(sample_weights)
+#     sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
+#     return sampler
+#
+# # check if CUDA is available
+# train_on_gpu = torch.cuda.is_available()
+# #train_on_gpu = False
+#
+# if not train_on_gpu:
+#     print('CUDA is not available.  Training on CPU ...')
+# else:
+#     print('CUDA is available!  Training on GPU ...')
+#
+# # number of subprocesses to use for data loading
+# num_workers = 10
+# # how many samples per batch to load
+# batch_size = 100
+# # percentage of training set to use as validation
+# valid_size = 0.25
+#
+# # convert data to a normalized torch.FloatTensor
+# transform = transforms.Compose([
+#     transforms.Resize((256,256)),
+#     transforms.ToTensor(),
+#     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+#     ])
+#
+# DATA_PATH_TRAIN = Path("/home/ss20/bla-data")
+#
+#
+# train_data = datasets.ImageFolder(root=DATA_PATH_TRAIN, transform=transform, loader=load_image)
+#
+# # obtain training indices that will be used for validation
+# labels = [x[1] for x in train_data.samples]
+# num_train = len(train_data)
+# indices = list(range(num_train))
+# np.random.shuffle(indices)
+# split = int(np.floor(valid_size * num_train))
+# train_idx, valid_idx = indices[split:], indices[:split]
+# train_labels = [labels[x] for x in train_idx]
+# val_labels = [labels[x] for x in valid_idx]
+# print(train_labels, val_labels)
+# train_sampler, valid_sampler = sampler_(train_labels), sampler_(val_labels)
+#
+#
+#
+#
+# # prepare data loaders (combine dataset and sampler)
+# train_loader = torch.utils.data.DataLoader(Subset(train_data, train_idx), batch_size=batch_size,
+#     sampler=train_sampler, num_workers=num_workers)
+# valid_loader = torch.utils.data.DataLoader(Subset(train_data, valid_idx), batch_size=batch_size,
+#     sampler=valid_sampler, num_workers=num_workers)

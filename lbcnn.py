@@ -140,7 +140,8 @@ class Net(nn.Module):
         self.first_lbc_layer = nn.Sequential(self.layer1, self.layer2, self.layer3)
         self.lbc_layers = nn.Sequential(self.layer4, self.layer2, self.layer3)
 
-        self.pool = nn.AvgPool2d((930, 1250), stride=6)
+        #self.pool = nn.AvgPool2d((930, 1250), stride=6)
+        self.pool = nn.AvgPool2d((226, 226), stride=6)
 
         self.fc1 = nn.Linear(36, 256)
         self.fc2 = nn.Linear(256, 64)
@@ -157,6 +158,7 @@ class Net(nn.Module):
 
         for i in range(10):
             x = self.lbc_layers(x)
+
         x = self.pool(x)
 
         #x = x.view(-1, 1228800)
