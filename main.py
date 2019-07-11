@@ -48,17 +48,21 @@ transform = transforms.Compose([
     ])
 
 DATA_PATH_TRAIN = Path("/home/ss20/dataset")
+DATA_PATH_TEST = Path("/home/ss20/sample-data")
 
 train_data = datasets.ImageFolder(root=DATA_PATH_TRAIN, transform=transform, loader=load_image)
 train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+
+test_data = datasets.ImageFolder(root=DATA_PATH_TEST, transform=transform, loader=load_image)
+test_loader = DataLoader(dataset=test_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
 # obtain training indices that will be used for validation
 num_train = len(train_data)
 indices = list(range(num_train))
 np.random.shuffle(indices)
 split = int(np.floor(valid_size * num_train))
-# train_idx, valid_idx = indices[split:], indices[:split]
-train_idx, valid_idx = indices[:200], indices[200:300]
+#train_idx, valid_idx = indices[split:], indices[:split]
+train_idx, valid_idx = indices[:48000], indices[48000:60000]
 #print(split)
 
 # define samplers for obtaining training and validation batches
@@ -114,21 +118,26 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.01)
 
 # number of epochs to train the model
-n_epochs = 2
+n_epochs = 10
 
 valid_loss_min = np.Inf  # track change in validation loss
+
+outfile = open("out.txt", "a")
 
 for epoch in range(1, n_epochs + 1):
 
     # keep track of training and validation loss
     train_loss = 0.0
     valid_loss = 0.0
+    class_correct = list(0. for i in range(len(classes)))
+    class_total = list(0. for i in range(len(classes)))
 
     ###################
     # train the model #
     ###################
     model.train()
     print("Training the model..")
+    outfile.write("Training the model..")
     counter = 0
     for data, target in train_loader:
         # move tensors to GPU if CUDA is available
@@ -139,17 +148,35 @@ for epoch in range(1, n_epochs + 1):
         # forward pass: compute predicted outputs by passing inputs to the model
 
         output = model(data)
+        #print("output", output)
         counter += batch_size
-        print("Trained - %d" % counter)
+        #print("Trained - %d" % counter)
 
         # calculate the batch loss
         loss = criterion(output, target)
+        #print("loss", loss)
         # backward pass: compute gradient of the loss with respect to model parameters
         loss.backward()
         # perform a single optimization step (parameter update)
         optimizer.step()
         # update training loss
+        #print("loss.item", loss.item(), data.size(0))
         train_loss += loss.item() * data.size(0)
+
+        # convert output probabilites to predicted class
+        _, pred = torch.max(output, 1)
+        #print("torch.max", torch.max(output, 1))
+        # compare predictions to true label
+        correct_tensor = pred.eq(target.data.view_as(pred))
+        #print("correct tensor, pred.eq", correct_tensor, target.data.view_as(pred))
+        correct = np.squeeze(correct_tensor.numpy()) if not train_on_gpu else np.squeeze(correct_tensor.cpu().numpy())
+        #print("correct", correct)
+        # calculate test accuracy for each object class
+        for i in range(batch_size):
+            label = target.data[i]
+            class_correct[label] += correct[i].item()
+            class_total[label] += 1
+
         del data, target
         torch.cuda.empty_cache()
         gc.collect()
@@ -180,24 +207,91 @@ for epoch in range(1, n_epochs + 1):
     # print training/validation statistics
     print('Epoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
         epoch, train_loss, valid_loss))
+    outfile.write('Epoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
+        epoch, train_loss, valid_loss))
 
     # save model if validation loss has decreased
     if valid_loss <= valid_loss_min:
         print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(
             valid_loss_min,
             valid_loss))
+        outfile.write('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(
+            valid_loss_min,
+            valid_loss))
         torch.save(model.state_dict(), 'model_cifar.pt')
         valid_loss_min = valid_loss
 
+    for i in range(len(classes)):
+        if class_total[i] > 0:
+            print('Train Accuracy of %5s: %2d%% (%2d/%2d)' % (
+                classes[i], 100 * class_correct[i] / class_total[i],
+                np.sum(class_correct[i]), np.sum(class_total[i])))
+            outfile.write('Train Accuracy of %5s: %2d%% (%2d/%2d)' % (
+                classes[i], 100 * class_correct[i] / class_total[i],
+                np.sum(class_correct[i]), np.sum(class_total[i])))
+        else:
+            print('Train Accuracy of %5s: N/A (no training examples)' % (classes[i]))
+            outfile.write('Train Accuracy of %5s: N/A (no training examples)' % (classes[i]))
+
+    print('\nTrain Accuracy (Overall): %2d%% (%2d/%2d)\n\n' % (
+        100. * np.sum(class_correct) / np.sum(class_total),
+        np.sum(class_correct), np.sum(class_total)))
+    outfile.write('\nTrain Accuracy (Overall): %2d%% (%2d/%2d)\n\n' % (
+        100. * np.sum(class_correct) / np.sum(class_total),
+        np.sum(class_correct), np.sum(class_total)))
 
 
+# track test loss
+test_loss = 0.0
+class_correct = list(0. for i in range(10))
+class_total = list(0. for i in range(10))
 
+model.eval()
+with torch.no_grad():
+    # iterate over test data
+    for data, target in test_loader:
+        # move tensors to GPU if CUDA is available
+        if train_on_gpu:
+            data, target = data.cuda(), target.cuda()
+        # forward pass: compute predicted outputs by passing inputs to the model
+        output = model(data)
+        # calculate the batch loss
+        loss = criterion(output, target)
+        # update test loss 
+        test_loss += loss.item()*data.size(0)
+        # convert output probabilities to predicted class
+        _, pred = torch.max(output, 1)    
+        # compare predictions to true label
+        correct_tensor = pred.eq(target.data.view_as(pred))
+        correct = np.squeeze(correct_tensor.numpy()) if not train_on_gpu else np.squeeze(correct_tensor.cpu().numpy())
+        # calculate test accuracy for each object class
+        for i in range(batch_size):
+            label = target.data[i]
+            class_correct[label] += correct[i].item()
+            class_total[label] += 1
 
+# average test loss
+test_loss = test_loss/len(test_loader.dataset)
+print('Test Loss: {:.6f}\n'.format(test_loss))
+outfile.write('Test Loss: {:.6f}\n'.format(test_loss))
 
+for i in range(2):
+    if class_total[i] > 0:
+        print('Test Accuracy of %5s: %2d%% (%2d/%2d)' % (
+            classes[i], 100 * class_correct[i] / class_total[i],
+            np.sum(class_correct[i]), np.sum(class_total[i])))
+        outfile.write('Test Accuracy of %5s: %2d%% (%2d/%2d)' % (
+            classes[i], 100 * class_correct[i] / class_total[i],
+            np.sum(class_correct[i]), np.sum(class_total[i])))
+    else:
+        print('Test Accuracy of %5s: N/A (no training examples)' % (classes[i]))
+        outfile.write('Test Accuracy of %5s: N/A (no training examples)' % (classes[i]))
 
+print('\nTest Accuracy (Overall): %2d%% (%2d/%2d)' % (
+    100. * np.sum(class_correct) / np.sum(class_total),
+    np.sum(class_correct), np.sum(class_total)))
+outfile.write('\nTest Accuracy (Overall): %2d%% (%2d/%2d)' % (
+    100. * np.sum(class_correct) / np.sum(class_total),
+    np.sum(class_correct), np.sum(class_total)))
 
-
-
-
-
-
+outfile.close()

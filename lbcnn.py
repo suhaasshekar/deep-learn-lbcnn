@@ -86,7 +86,46 @@ class Net(nn.Module):
                                       [0, 0, 0]],
                                      [[1, 0, 0],
                                       [0, -1, 0],
-                                      [0, 0, 0]]]], dtype=torch.float, requires_grad=False)
+                                      [0, 0, 0]]]], dtype=torch.float)
+
+        self.weights1 = torch.tensor([[[[0, 1, 0],
+                                        [0, -1, 0],
+                                        [0, 0, 0]]],
+
+
+                                      [[[0, 0, 1],
+                                        [0, -1, 0],
+                                        [0, 0, 0]]],
+
+
+                                      [[[0, 0, 0],
+                                        [0, -1, 1],
+                                        [0, 0, 0]]],
+
+
+                                      [[[0, 0, 0],
+                                        [0, -1, 0],
+                                        [0, 0, 1]]],
+
+
+                                      [[[0, 0, 0],
+                                        [0, -1, 0],
+                                        [0, 1, 0]]],
+
+
+                                      [[[0, 0, 0],
+                                        [0, -1, 0],
+                                        [1, 0, 0]]],
+
+
+                                      [[[0, 0, 0],
+                                        [1, -1, 0],
+                                        [0, 0, 0]]],
+
+
+                                      [[[1, 0, 0],
+                                        [0, -1, 0],
+                                        [0, 0, 0]]]], dtype=torch.float)
 
         self.layer1 = nn.Conv2d(3, 8, 3, stride=1, padding=1, bias=False)
         self.layer1.weight = nn.Parameter(self.weights, requires_grad=False)
@@ -95,15 +134,16 @@ class Net(nn.Module):
 
         self.layer3 = nn.Conv2d(8, 1, 1, stride=1, padding=0)
 
-        self.layer4 = nn.Conv2d(1, 8, 3, padding=1, bias=False)
+        self.layer4 = nn.Conv2d(1, 8, 3, stride=1, padding=1, bias=False)
+        self.layer4.weight = nn.Parameter(self.weights1, requires_grad=False)
 
         self.first_lbc_layer = nn.Sequential(self.layer1, self.layer2, self.layer3)
         self.lbc_layers = nn.Sequential(self.layer4, self.layer2, self.layer3)
 
         self.pool = nn.AvgPool2d((930, 1250), stride=6)
 
-        self.fc1 = nn.Linear(36, 128)
-        self.fc2 = nn.Linear(128, 64)
+        self.fc1 = nn.Linear(36, 256)
+        self.fc2 = nn.Linear(256, 64)
         self.fc3 = nn.Linear(64, 2)
         self.dropout = nn.Dropout(0.2)
 
@@ -119,6 +159,7 @@ class Net(nn.Module):
             x = self.lbc_layers(x)
         x = self.pool(x)
 
+        #x = x.view(-1, 1228800)
         x = x.view(-1, 36)
 
         x = F.relu(self.fc1(x))
