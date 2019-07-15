@@ -91,31 +91,6 @@ valid_loader = torch.utils.data.DataLoader(Subset(train_data, valid_idx), batch_
 # specify the image classes
 classes = train_data.classes
 
-# # helper function to un-normalize and display an image
-# def imshow(img):
-#     img = img / 2 + 0.5  # unnormalize
-#     plt.imshow(np.transpose(img[0], (1, 2, 0)))  # convert from Tensor image
-#     plt.show()
-
-# def main():
-#     #pass
-#     #get some random training images
-#     #dataiter = iter(train_loader)
-#     #images, labels = dataiter.next()
-#     #print(images.shape)
-#     # show images
-#     #imshow(images)
-#     #print(labels[25])
-#     model = lbcnn.Net()
-#     print(model)
-#
-#     # move tensors to GPU if CUDA is available
-#     if train_on_gpu:
-#         model.cuda()
-#
-# if __name__ == "__main__":
-#     main()
-
 # create a complete CNN
 model = lbcnn.Net()
 #print(model)
@@ -306,7 +281,7 @@ test_loss = 0.0
 class_correct = list(0. for i in range(2))
 class_total = list(0. for i in range(2))
 
-model.load_state_dict(torch.load('model_cifar1.pt'))
+model.load_state_dict(torch.load('model_cifar.pt'))
 print('Load saved model for testing...')
 print('Testing the model..')
 model.eval()
