@@ -1,10 +1,10 @@
 from train import train_n_test
 
 
-learning_rate = [0.01, 0.001, 0.0001, 0.00001]
-data_sizes = [5000, 10000, 20000, 40000]
-lbc_layers = [10, 20]
-epochs = 500
+learning_rate = [0.01]
+data_sizes = [10]
+lbc_layers = [1]
+epochs = 100
 for layers in lbc_layers:
     for size in data_sizes:
         for lr in learning_rate:

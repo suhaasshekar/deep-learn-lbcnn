@@ -1,13 +1,14 @@
+import numpy as nn
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 # defining the LBCNN architecture
-class Net(nn.Module):
+class Net_test(nn.Module):
 
     def __init__(self, no_of_lbc_layers):
-        super(Net, self).__init__()
+        super(Net_test, self).__init__()
         self.weights_3_channel = torch.tensor([[[[0, 1, 0],
                                       [0, -1, 0],
                                       [0, 0, 0]],
@@ -129,12 +130,12 @@ class Net(nn.Module):
 
 
         self.layer1 = nn.Conv2d(3, 8, 3, stride=1, padding=1, bias=False)
-        self.layer1.weight = nn.Parameter(self.weights_3_channel, requires_grad=True)
+        self.layer1.weight = nn.Parameter(self.weights_3_channel, requires_grad=False)
         self.layer2 = nn.Conv2d(8, 1, 1, stride=1, padding=0)
 
         self.lbc_layers = nn.ModuleList()
         self.conv = nn.Conv2d(1, 8, 3, stride=1, padding=1, bias=False)
-        self.conv.weight = nn.Parameter(self.weights_1_channel, requires_grad=True)
+        self.conv.weight = nn.Parameter(self.weights_1_channel, requires_grad=False)
         for i in range(no_of_lbc_layers - 1):
             self.lbc_layers.append(self.conv)
             self.lbc_layers.append(nn.ReLU())
@@ -159,14 +160,7 @@ class Net(nn.Module):
         #x = x.view(-1, 1228800)
         x = x.view(-1, 36)
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = self.dropout(F.relu(self.fc2(x)))
         x = self.fc3(x)
 
         return x
-
-#model = Net()
-#print(model)
-# print(model.layer1.weight)
-# print(model.layer1.weight.shape)
-# print(model.layer3.weight)
-

@@ -2,6 +2,8 @@
 # Suhaas Shekar
 # 118220499
 
+
+import torch.nn.functional as F
 import torch
 import torch.nn as nn
 import torchvision
@@ -14,9 +16,171 @@ from torchvision import datasets
 from PIL import Image
 from colour_demosaicing import demosaicing_CFA_Bayer_bilinear as demosaic
 import matplotlib.pyplot as plt
-import lbcnn
 import torch.optim as optim
 import gc
+# defining the LBCNN architecture
+class Scratch(nn.Module):
+
+    def __init__(self, no_of_lbc_layers):
+        super(Scratch, self).__init__()
+        self.weights_3_channel = torch.tensor([[[[0, 1, 0],
+                                      [0, -1, 0],
+                                      [0, 0, 0]],
+                                     [[0, 1, 0],
+                                      [0, -1, 0],
+                                      [0, 0, 0]],
+                                     [[0, 1, 0],
+                                      [0, -1, 0],
+                                      [0, 0, 0]]],
+
+                                    [[[0, 0, 1],
+                                      [0, -1, 0],
+                                      [0, 0, 0]],
+                                     [[0, 0, 1],
+                                      [0, -1, 0],
+                                      [0, 0, 0]],
+                                     [[0, 0, 1],
+                                      [0, -1, 0],
+                                      [0, 0, 0]]],
+
+                                    [[[0, 0, 0],
+                                      [0, -1, 1],
+                                      [0, 0, 0]],
+                                     [[0, 0, 0],
+                                      [0, -1, 1],
+                                      [0, 0, 0]],
+                                     [[0, 0, 0],
+                                      [0, -1, 1],
+                                      [0, 0, 0]]],
+
+                                    [[[0, 0, 0],
+                                      [0, -1, 0],
+                                      [0, 0, 1]],
+                                     [[0, 0, 0],
+                                      [0, -1, 0],
+                                      [0, 0, 1]],
+                                     [[0, 0, 0],
+                                      [0, -1, 0],
+                                      [0, 0, 1]]],
+
+                                    [[[0, 0, 0],
+                                      [0, -1, 0],
+                                      [0, 1, 0]],
+                                     [[0, 0, 0],
+                                      [0, -1, 0],
+                                      [0, 1, 0]],
+                                     [[0, 0, 0],
+                                      [0, -1, 0],
+                                      [0, 1, 0]]],
+
+                                    [[[0, 0, 0],
+                                      [0, -1, 0],
+                                      [1, 0, 0]],
+                                     [[0, 0, 0],
+                                      [0, -1, 0],
+                                      [1, 0, 0]],
+                                     [[0, 0, 0],
+                                      [0, -1, 0],
+                                      [1, 0, 0]]],
+
+                                    [[[0, 0, 0],
+                                      [1, -1, 0],
+                                      [0, 0, 0]],
+                                     [[0, 0, 0],
+                                      [1, -1, 0],
+                                      [0, 0, 0]],
+                                     [[0, 0, 0],
+                                      [1, -1, 0],
+                                      [0, 0, 0]]],
+
+                                    [[[1, 0, 0],
+                                      [0, -1, 0],
+                                      [0, 0, 0]],
+                                     [[1, 0, 0],
+                                      [0, -1, 0],
+                                      [0, 0, 0]],
+                                     [[1, 0, 0],
+                                      [0, -1, 0],
+                                      [0, 0, 0]]]], dtype=torch.float)
+
+        self.weights_1_channel = torch.tensor([[[[0, 1, 0],
+                                        [0, -1, 0],
+                                        [0, 0, 0]]],
+
+
+                                      [[[0, 0, 1],
+                                        [0, -1, 0],
+                                        [0, 0, 0]]],
+
+
+                                      [[[0, 0, 0],
+                                        [0, -1, 1],
+                                        [0, 0, 0]]],
+
+
+                                      [[[0, 0, 0],
+                                        [0, -1, 0],
+                                        [0, 0, 1]]],
+
+
+                                      [[[0, 0, 0],
+                                        [0, -1, 0],
+                                        [0, 1, 0]]],
+
+
+                                      [[[0, 0, 0],
+                                        [0, -1, 0],
+                                        [1, 0, 0]]],
+
+
+                                      [[[0, 0, 0],
+                                        [1, -1, 0],
+                                        [0, 0, 0]]],
+
+
+                                      [[[1, 0, 0],
+                                        [0, -1, 0],
+                                        [0, 0, 0]]]], dtype=torch.float)
+
+
+        self.layer1 = nn.Conv2d(3, 8, 3, stride=1, padding=1, bias=False)
+        self.layer1.weight = nn.Parameter(self.weights_3_channel, requires_grad=True)
+        self.layer2 = nn.Conv2d(8, 1, 1, stride=1, padding=0)
+
+        self.lbc_layers = nn.ModuleList()
+        self.conv = nn.Conv2d(1, 8, 3, stride=1, padding=1, bias=False)
+        self.conv.weight = nn.Parameter(self.weights_1_channel, requires_grad=True)
+        for i in range(no_of_lbc_layers - 1):
+            self.lbc_layers.append(self.conv)
+            self.lbc_layers.append(nn.ReLU())
+            self.lbc_layers.append(nn.Conv2d(8, 1, 1, stride=1, padding=0))
+
+        #self.pool = nn.AvgPool2d((930, 1250), stride=6)
+        self.pool = nn.AvgPool2d((226, 226), stride=6)
+        #self.pool = nn.MaxPool2d((226, 226), stride=6)
+        self.fc1 = nn.Linear(36, 256)
+        self.fc2 = nn.Linear(256, 64)
+        self.fc3 = nn.Linear(64, 2)
+        self.dropout = nn.Dropout(0.2)
+
+    def forward(self, x):
+        #print('before network',x)
+        x = F.relu(self.layer1(x))
+        #print('after first', x)
+        x = self.layer2(x)
+        for layer in self.lbc_layers:
+            x = layer(x)
+
+        x = self.pool(x)
+        #x = x.view(-1, 1228800)
+        x = x.view(-1, 36)
+        #print('after flatten', x)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        print('x',x)
+
+        return x
 
 def load_image(image_path):
     img = Image.open(image_path)
@@ -32,26 +196,20 @@ def sampler_(labels, counts_array):
     return sampler
 
 def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no_of_lbc_layers=10, epochs=100):
-    outfile = open(output_file, "a")
+
     print("Learning rate=%f Data size=%d No. of LBCs=%d Epochs=%d\n" % (
         learning_rate, data_size, no_of_lbc_layers, epochs
     ))
-    outfile.write("Learning rate=%f Data size=%d No. of LBCs=%d Epochs=%d\n" % (
-        learning_rate, data_size, no_of_lbc_layers, epochs
-    ))
-    outfile.flush()
+
     #check if CUDA is available
     train_on_gpu = torch.cuda.is_available()
     #train_on_gpu = False
 
     if not train_on_gpu:
         print('CUDA is not available.  Training on CPU ...')
-        outfile.write('CUDA is not available.  Training on CPU ...')
-        outfile.flush()
+
     else:
         print('CUDA is available!  Training on GPU ...')
-        outfile.write('CUDA is available!  Training on GPU ...')
-        outfile.flush()
 
     # number of subprocesses to use for data loading
     num_workers = 10
@@ -91,15 +249,6 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     val_labels = [labels[x] for x in valid_idx]
     train_sampler, valid_sampler = sampler_(train_labels, counts_array), sampler_(val_labels, counts_array)
 
-    test_indices = list(range(len(test_data)))
-    np.random.shuffle(test_indices)
-    test_idx = test_indices[:200]
-    test_sampler = SubsetRandomSampler(test_idx)
-    test_loader = DataLoader(dataset=test_data, batch_size=batch_size, sampler=test_sampler, num_workers=num_workers)
-    # define samplers for obtaining training and validation batches
-    # train_sampler = SubsetRandomSampler(train_idx)
-    # valid_sampler = SubsetRandomSampler(valid_idx)
-
     # prepare data loaders (combine dataset and sampler)
     train_loader = torch.utils.data.DataLoader(Subset(train_data, train_idx), batch_size=batch_size,
                                                sampler=train_sampler, num_workers=num_workers)
@@ -110,7 +259,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     classes = train_data.classes
 
     # create a complete CNN
-    model = lbcnn.Net(no_of_lbc_layers)
+    model = Scratch(1)
     #print(model)
 
     # move tensors to GPU if CUDA is available
@@ -143,12 +292,10 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         ###################
         model.train()
         print("Training the model..")
-        outfile.write("Training the model..")
-        outfile.flush()
         counter = 0
         for data, target in train_loader:
             # move tensors to GPU if CUDA is available
-            #print(target)
+            print('target',target)
             if train_on_gpu:
                 data, target = data.cuda(), target.cuda()
             # clear the gradients of all optimized variables
@@ -162,7 +309,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
 
             # calculate the batch loss
             loss = criterion(output, target)
-            #print("loss", loss)
+            print("loss", loss)
             # backward pass: compute gradient of the loss with respect to model parameters
             loss.backward()
             # perform a single optimization step (parameter update)
@@ -229,127 +376,43 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         # print training/validation statistics
         print('Epoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
             epoch, train_loss, valid_loss))
-        outfile.write('Epoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
-            epoch, train_loss, valid_loss))
-        outfile.flush()
 
         # save model if validation loss has decreased
         if valid_loss <= valid_loss_min:
             print('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(
                 valid_loss_min,
                 valid_loss))
-            outfile.write('Validation loss decreased ({:.6f} --> {:.6f}).  Saving model ...'.format(
-                valid_loss_min,
-                valid_loss))
-            outfile.flush()
+
             torch.save(model.state_dict(), model_file)
             valid_loss_min = valid_loss
 
-        # Calculating Train Accuracy
-        for i in range(no_of_classes):
-            if class_total[i] > 0:
-                print('Train Accuracy of %5s: %2d%% (%2d/%2d)' % (
-                    classes[i], 100 * class_correct[i] / class_total[i],
-                    np.sum(class_correct[i]), np.sum(class_total[i])))
-                outfile.write('Train Accuracy of %5s: %2d%% (%2d/%2d)' % (
-                    classes[i], 100 * class_correct[i] / class_total[i],
-                    np.sum(class_correct[i]), np.sum(class_total[i])))
-                outfile.flush()
-            else:
-                print('Train Accuracy of %5s: N/A (no training examples)' % (classes[i]))
-                outfile.write('Train Accuracy of %5s: N/A (no training examples)' % (classes[i]))
-                outfile.flush()
+        # # Calculating Train Accuracy
+        # for i in range(no_of_classes):
+        #     if class_total[i] > 0:
+        #         print('Train Accuracy of %5s: %2d%% (%2d/%2d)' % (
+        #             classes[i], 100 * class_correct[i] / class_total[i],
+        #             np.sum(class_correct[i]), np.sum(class_total[i])))
+        #
+        #     else:
+        #         print('Train Accuracy of %5s: N/A (no training examples)' % (classes[i]))
+        #
+        #
+        # # Calculating Validation Accuracy
+        # for i in range(no_of_classes):
+        #     if val_class_total[i] > 0:
+        #         print('Validation Accuracy of %5s: %2d%% (%2d/%2d)' % (
+        #             classes[i], 100 * val_class_correct[i] / val_class_total[i],
+        #             np.sum(val_class_correct[i]), np.sum(val_class_total[i])))
+        #
+        #     else:
+        #         print('Val Accuracy of %5s: N/A (no training examples)' % (classes[i]))
+        #
+        #
+        # print('\nTrain Accuracy (Overall): %2d%% (%2d/%2d)\n\n' % (
+        #     100. * np.sum(class_correct) / np.sum(class_total),
+        #     np.sum(class_correct), np.sum(class_total)))
+        # print('Validation Accuracy (Overall): %2d%% (%2d/%2d)\n\n' % (
+        #     100. * np.sum(val_class_correct) / np.sum(val_class_total),
+        #     np.sum(val_class_correct), np.sum(val_class_total)))
 
-        # Calculating Validation Accuracy
-        for i in range(no_of_classes):
-            if val_class_total[i] > 0:
-                print('Validation Accuracy of %5s: %2d%% (%2d/%2d)' % (
-                    classes[i], 100 * val_class_correct[i] / val_class_total[i],
-                    np.sum(val_class_correct[i]), np.sum(val_class_total[i])))
-                outfile.write('Validation Accuracy of %5s: %2d%% (%2d/%2d)' % (
-                    classes[i], 100 * val_class_correct[i] / val_class_total[i],
-                    np.sum(val_class_correct[i]), np.sum(val_class_total[i])))
-                outfile.flush()
-            else:
-                print('Val Accuracy of %5s: N/A (no training examples)' % (classes[i]))
-                outfile.write('Val Accuracy of %5s: N/A (no training examples)' % (classes[i]))
-                outfile.flush()
-
-
-        print('\nTrain Accuracy (Overall): %2d%% (%2d/%2d)\n\n' % (
-            100. * np.sum(class_correct) / np.sum(class_total),
-            np.sum(class_correct), np.sum(class_total)))
-        outfile.write('\nTrain Accuracy (Overall): %2d%% (%2d/%2d)' % (
-            100. * np.sum(class_correct) / np.sum(class_total),
-            np.sum(class_correct), np.sum(class_total)))
-        outfile.flush()
-
-        print('Validation Accuracy (Overall): %2d%% (%2d/%2d)\n\n' % (
-            100. * np.sum(val_class_correct) / np.sum(val_class_total),
-            np.sum(val_class_correct), np.sum(val_class_total)))
-        outfile.write('Validation Accuracy (Overall): %2d%% (%2d/%2d)\n\n' % (
-            100. * np.sum(val_class_correct) / np.sum(val_class_total),
-            np.sum(val_class_correct), np.sum(val_class_total)))
-        outfile.flush()
-
-    # track test loss
-    test_loss = 0.0
-    class_correct = list(0. for i in range(2))
-    class_total = list(0. for i in range(2))
-
-    model.load_state_dict(torch.load(model_file))
-    print('Load saved model for testing...')
-    print('Testing the model..')
-    model.eval()
-    with torch.no_grad():
-        # iterate over test data
-        for data, target in test_loader:
-            # move tensors to GPU if CUDA is available
-            if train_on_gpu:
-                data, target = data.cuda(), target.cuda()
-            # forward pass: compute predicted outputs by passing inputs to the model
-            output = model(data)
-            # calculate the batch loss
-            loss = criterion(output, target)
-            # update test loss
-            test_loss += loss.item()*data.size(0)
-            # convert output probabilities to predicted class
-            _, pred = torch.max(output, 1)
-            # compare predictions to true label
-            correct_tensor = pred.eq(target.data.view_as(pred))
-            correct = np.squeeze(correct_tensor.numpy()) if not train_on_gpu else np.squeeze(correct_tensor.cpu().numpy())
-            # calculate test accuracy for each object class
-            for i in range(batch_size):
-                label = target.data[i]
-                class_correct[label] += correct[i].item()
-                class_total[label] += 1
-
-    # average test loss
-    test_loss = test_loss/len(test_loader.dataset)
-    print('Test Loss: {:.6f}\n'.format(test_loss))
-    outfile.write('Test Loss: {:.6f}\n'.format(test_loss))
-    outfile.flush()
-
-    for i in range(no_of_classes):
-        if class_total[i] > 0:
-            print('Test Accuracy of %5s: %2d%% (%2d/%2d)' % (
-                classes[i], 100 * class_correct[i] / class_total[i],
-                np.sum(class_correct[i]), np.sum(class_total[i])))
-            outfile.write('Test Accuracy of %5s: %2d%% (%2d/%2d)' % (
-                classes[i], 100 * class_correct[i] / class_total[i],
-                np.sum(class_correct[i]), np.sum(class_total[i])))
-            outfile.flush()
-        else:
-            print('Test Accuracy of %5s: N/A (no training examples)' % (classes[i]))
-            outfile.write('Test Accuracy of %5s: N/A (no training examples)' % (classes[i]))
-            outfile.flush()
-
-    print('\nTest Accuracy (Overall): %2d%% (%2d/%2d)' % (
-        100. * np.sum(class_correct) / np.sum(class_total),
-        np.sum(class_correct), np.sum(class_total)))
-    outfile.write('\nTest Accuracy (Overall): %2d%% (%2d/%2d)' % (
-        100. * np.sum(class_correct) / np.sum(class_total),
-        np.sum(class_correct), np.sum(class_total)))
-    outfile.flush()
-
-    outfile.close()
+train_n_test('scratch.pt', None, learning_rate=0.01, data_size=2, no_of_lbc_layers=10, epochs=40)
