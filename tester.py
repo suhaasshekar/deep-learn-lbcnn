@@ -10,7 +10,7 @@ from torchvision import datasets
 from PIL import Image
 from colour_demosaicing import demosaicing_CFA_Bayer_bilinear as demosaic
 import matplotlib.pyplot as plt
-import lbcnn_test
+import lbcnn
 import torch.optim as optim
 import gc
 
@@ -33,13 +33,13 @@ else:
 # number of subprocesses to use for data loading
 num_workers = 10
 # how many samples per batch to load
-batch_size = 100
+batch_size = 50
 # percentage of training set to use as validation
 #valid_size = 0.2
 
 # convert data to a normalized torch.FloatTensor
 transform = transforms.Compose([
-    transforms.Resize((256,256)),
+    transforms.Resize((30, 30)),
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
@@ -51,7 +51,7 @@ test_data = datasets.ImageFolder(root=DATA_PATH_TEST, transform=transform, loade
 test_loader = DataLoader(dataset=test_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
 # create a complete CNN
-model = lbcnn_test.Net_test(10)
+model = lbcnn.Net(5)
 if train_on_gpu:
     model.cuda()
 # specify loss function (categorical cross-entropy)
@@ -67,7 +67,7 @@ test_loss = 0.0
 class_correct = list(0. for i in range(2))
 class_total = list(0. for i in range(2))
 
-model_file = './good/model_0.01_5000_10_500_aborted.pt'
+model_file = 'model_0.01_20000_5_200.pt'
 
 model.load_state_dict(torch.load(model_file))
 print('Load saved model for testing...')

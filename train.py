@@ -56,13 +56,13 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     # number of subprocesses to use for data loading
     num_workers = 10
     # how many samples per batch to load
-    batch_size = 10
+    batch_size = 50
     # percentage of training set to use as validation
     #valid_size = 0.2
 
     # convert data to a normalized torch.FloatTensor
     transform = transforms.Compose([
-        transforms.Resize((256,256)),
+        transforms.Resize((30,30)),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
@@ -84,7 +84,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     indices = list(range(num_train))
     np.random.shuffle(indices)
     #split = int(np.floor(valid_size * num_train))
-    train_idx, valid_idx = indices[:10], indices[10:20]
+    train_idx, valid_idx = indices[:200], indices[200:250]
     #train_idx, valid_idx = indices[:int(data_size * 0.8)], indices[int(data_size * 0.8):data_size]
     train_labels = [labels[x] for x in train_idx]
     #print(train_labels)
@@ -93,7 +93,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
 
     test_indices = list(range(len(test_data)))
     np.random.shuffle(test_indices)
-    test_idx = test_indices[:200]
+    test_idx = test_indices[:50]
     test_sampler = SubsetRandomSampler(test_idx)
     test_loader = DataLoader(dataset=test_data, batch_size=batch_size, sampler=test_sampler, num_workers=num_workers)
     # define samplers for obtaining training and validation batches
@@ -121,6 +121,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     criterion = nn.CrossEntropyLoss()
 
     # specify optimizer
+    #optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=1.0, dampening=0, nesterov=True)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # number of epochs to train the model
@@ -143,8 +144,6 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         ###################
         model.train()
         print("Training the model..")
-        outfile.write("Training the model..")
-        outfile.flush()
         counter = 0
         for data, target in train_loader:
             # move tensors to GPU if CUDA is available
@@ -229,7 +228,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         # print training/validation statistics
         print('Epoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
             epoch, train_loss, valid_loss))
-        outfile.write('Epoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
+        outfile.write('\nEpoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
             epoch, train_loss, valid_loss))
         outfile.flush()
 
@@ -251,7 +250,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
                 print('Train Accuracy of %5s: %2d%% (%2d/%2d)' % (
                     classes[i], 100 * class_correct[i] / class_total[i],
                     np.sum(class_correct[i]), np.sum(class_total[i])))
-                outfile.write('Train Accuracy of %5s: %2d%% (%2d/%2d)' % (
+                outfile.write('\nTrain Accuracy of %5s: %2d%% (%2d/%2d)' % (
                     classes[i], 100 * class_correct[i] / class_total[i],
                     np.sum(class_correct[i]), np.sum(class_total[i])))
                 outfile.flush()
@@ -276,7 +275,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
                 outfile.flush()
 
 
-        print('\nTrain Accuracy (Overall): %2d%% (%2d/%2d)\n\n' % (
+        print('\nTrain Accuracy (Overall): %2d%% (%2d/%2d)' % (
             100. * np.sum(class_correct) / np.sum(class_total),
             np.sum(class_correct), np.sum(class_total)))
         outfile.write('\nTrain Accuracy (Overall): %2d%% (%2d/%2d)' % (
@@ -284,22 +283,24 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
             np.sum(class_correct), np.sum(class_total)))
         outfile.flush()
 
-        print('Validation Accuracy (Overall): %2d%% (%2d/%2d)\n\n' % (
+        print('Validation Accuracy (Overall): %2d%% (%2d/%2d)\n' % (
             100. * np.sum(val_class_correct) / np.sum(val_class_total),
             np.sum(val_class_correct), np.sum(val_class_total)))
-        outfile.write('Validation Accuracy (Overall): %2d%% (%2d/%2d)\n\n' % (
+        outfile.write('\nValidation Accuracy (Overall): %2d%% (%2d/%2d)' % (
             100. * np.sum(val_class_correct) / np.sum(val_class_total),
             np.sum(val_class_correct), np.sum(val_class_total)))
         outfile.flush()
 
     # track test loss
     test_loss = 0.0
-    class_correct = list(0. for i in range(2))
-    class_total = list(0. for i in range(2))
+    class_correct = list(0. for i in range(no_of_classes))
+    class_total = list(0. for i in range(no_of_classes))
 
     model.load_state_dict(torch.load(model_file))
     print('Load saved model for testing...')
     print('Testing the model..')
+    outfile.write('Load saved model for testing...\nTesting the model..')
+    outfile.flush()
     model.eval()
     with torch.no_grad():
         # iterate over test data
@@ -327,7 +328,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     # average test loss
     test_loss = test_loss/len(test_loader.dataset)
     print('Test Loss: {:.6f}\n'.format(test_loss))
-    outfile.write('Test Loss: {:.6f}\n'.format(test_loss))
+    outfile.write('\nTest Loss: {:.6f}'.format(test_loss))
     outfile.flush()
 
     for i in range(no_of_classes):
@@ -335,7 +336,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
             print('Test Accuracy of %5s: %2d%% (%2d/%2d)' % (
                 classes[i], 100 * class_correct[i] / class_total[i],
                 np.sum(class_correct[i]), np.sum(class_total[i])))
-            outfile.write('Test Accuracy of %5s: %2d%% (%2d/%2d)' % (
+            outfile.write('\nTest Accuracy of %5s: %2d%% (%2d/%2d)' % (
                 classes[i], 100 * class_correct[i] / class_total[i],
                 np.sum(class_correct[i]), np.sum(class_total[i])))
             outfile.flush()

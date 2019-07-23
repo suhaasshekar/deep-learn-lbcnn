@@ -156,11 +156,11 @@ class Scratch(nn.Module):
             self.lbc_layers.append(nn.Conv2d(8, 1, 1, stride=1, padding=0))
 
         #self.pool = nn.AvgPool2d((930, 1250), stride=6)
-        self.pool = nn.AvgPool2d((226, 226), stride=6)
+        self.pool = nn.AvgPool2d((5, 5), stride=5)
         #self.pool = nn.MaxPool2d((226, 226), stride=6)
         self.fc1 = nn.Linear(36, 256)
         self.fc2 = nn.Linear(256, 64)
-        self.fc3 = nn.Linear(64, 2)
+        self.fc3 = nn.Linear(64, 3)
         self.dropout = nn.Dropout(0.2)
 
     def forward(self, x):
@@ -214,13 +214,13 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     # number of subprocesses to use for data loading
     num_workers = 10
     # how many samples per batch to load
-    batch_size = 10
+    batch_size = 3
     # percentage of training set to use as validation
     #valid_size = 0.2
 
     # convert data to a normalized torch.FloatTensor
     transform = transforms.Compose([
-        transforms.Resize((256,256)),
+        transforms.Resize((30,30)),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
@@ -242,7 +242,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     indices = list(range(num_train))
     np.random.shuffle(indices)
     #split = int(np.floor(valid_size * num_train))
-    train_idx, valid_idx = indices[:10], indices[10:20]
+    train_idx, valid_idx = indices[:3], indices[3:6]
     #train_idx, valid_idx = indices[:int(data_size * 0.8)], indices[int(data_size * 0.8):data_size]
     train_labels = [labels[x] for x in train_idx]
     #print(train_labels)
@@ -259,7 +259,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     classes = train_data.classes
 
     # create a complete CNN
-    model = Scratch(1)
+    model = Scratch(5)
     #print(model)
 
     # move tensors to GPU if CUDA is available
@@ -295,7 +295,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         counter = 0
         for data, target in train_loader:
             # move tensors to GPU if CUDA is available
-            print('target',target)
+            #print('target',target)
             if train_on_gpu:
                 data, target = data.cuda(), target.cuda()
             # clear the gradients of all optimized variables
@@ -415,4 +415,4 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         #     100. * np.sum(val_class_correct) / np.sum(val_class_total),
         #     np.sum(val_class_correct), np.sum(val_class_total)))
 
-train_n_test('scratch.pt', None, learning_rate=0.01, data_size=2, no_of_lbc_layers=10, epochs=40)
+train_n_test('scratch.pt', None, learning_rate=0.01, data_size=2, no_of_lbc_layers=10, epochs=100)
