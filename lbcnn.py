@@ -143,10 +143,9 @@ class Net(nn.Module):
         #self.pool = nn.AvgPool2d((930, 1250), stride=6)
         self.pool = nn.AvgPool2d((5, 5), stride=5)
         #self.pool = nn.MaxPool2d((226, 226), stride=6)
-        self.fc1 = nn.Linear(36, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 64)
-        self.fc4 = nn.Linear(64, 4)
+        self.fc1 = nn.Linear(36, 256)
+        self.fc2 = nn.Linear(256, 64)
+        self.fc3 = nn.Linear(64, 4)
         self.dropout = nn.Dropout(0.2)
 
     def forward(self, x):
@@ -161,8 +160,7 @@ class Net(nn.Module):
         x = x.view(-1, 36)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = self.fc4(x)
+        x = self.fc3(x)
 
         return x
 

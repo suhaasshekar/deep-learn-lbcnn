@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import lbcnn
 import torch.optim as optim
 import gc
+import plotter
 
 def load_image(image_path):
     img = Image.open(image_path)
@@ -32,6 +33,8 @@ def sampler_(labels, counts_array):
     return sampler
 
 def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no_of_lbc_layers=10, epochs=100):
+    global graph
+    graph = plotter.VisdomLinePlotter(env_name='Plots')
     outfile = open(output_file, "a")
     print("Learning rate=%f Data size=%d No. of LBCs=%d Epochs=%d\n" % (
         learning_rate, data_size, no_of_lbc_layers, epochs
@@ -84,7 +87,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     indices = list(range(num_train))
     np.random.shuffle(indices)
     #split = int(np.floor(valid_size * num_train))
-    train_idx, valid_idx = indices[:200], indices[200:250]
+    train_idx, valid_idx = indices[:200], indices[200:300]
     #train_idx, valid_idx = indices[:int(data_size * 0.8)], indices[int(data_size * 0.8):data_size]
     train_labels = [labels[x] for x in train_idx]
     #print(train_labels)
@@ -93,7 +96,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
 
     test_indices = list(range(len(test_data)))
     np.random.shuffle(test_indices)
-    test_idx = test_indices[:50]
+    test_idx = test_indices[:100]
     test_sampler = SubsetRandomSampler(test_idx)
     test_loader = DataLoader(dataset=test_data, batch_size=batch_size, sampler=test_sampler, num_workers=num_workers)
     # define samplers for obtaining training and validation batches
@@ -224,11 +227,13 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         # calculate average losses
         train_loss = train_loss / len(train_loader.sampler)
         valid_loss = valid_loss / len(valid_loader.sampler)
+        graph.plot('Loss', 'Train', 'Class Loss', epoch, train_loss)
+        graph.plot('Loss', 'Val', 'Class Loss', epoch, valid_loss)
 
         # print training/validation statistics
         print('Epoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
             epoch, train_loss, valid_loss))
-        outfile.write('\nEpoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
+        outfile.write('\n\nEpoch: {} \tTraining Loss: {:.6f} \tValidation Loss: {:.6f}'.format(
             epoch, train_loss, valid_loss))
         outfile.flush()
 
@@ -265,7 +270,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
                 print('Validation Accuracy of %5s: %2d%% (%2d/%2d)' % (
                     classes[i], 100 * val_class_correct[i] / val_class_total[i],
                     np.sum(val_class_correct[i]), np.sum(val_class_total[i])))
-                outfile.write('Validation Accuracy of %5s: %2d%% (%2d/%2d)' % (
+                outfile.write('\nValidation Accuracy of %5s: %2d%% (%2d/%2d)' % (
                     classes[i], 100 * val_class_correct[i] / val_class_total[i],
                     np.sum(val_class_correct[i]), np.sum(val_class_total[i])))
                 outfile.flush()
@@ -290,6 +295,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
             100. * np.sum(val_class_correct) / np.sum(val_class_total),
             np.sum(val_class_correct), np.sum(val_class_total)))
         outfile.flush()
+        graph.plot('Accuracy', 'Val', 'Accuracy', epoch, 100. * np.sum(val_class_correct) / np.sum(val_class_total))
 
     # track test loss
     test_loss = 0.0
@@ -299,7 +305,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     model.load_state_dict(torch.load(model_file))
     print('Load saved model for testing...')
     print('Testing the model..')
-    outfile.write('Load saved model for testing...\nTesting the model..')
+    outfile.write('\nLoad saved model for testing...\nTesting the model..')
     outfile.flush()
     model.eval()
     with torch.no_grad():
