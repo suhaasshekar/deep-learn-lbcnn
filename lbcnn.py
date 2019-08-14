@@ -146,7 +146,7 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(36, 256)
         self.fc2 = nn.Linear(256, 64)
         self.fc3 = nn.Linear(64, 4)
-        self.dropout = nn.Dropout(0.2)
+        self.dropout = nn.Dropout(0.3)
 
     def forward(self, x):
 
@@ -158,14 +158,14 @@ class Net(nn.Module):
         x = self.pool(x)
         #x = x.view(-1, 1228800)
         x = x.view(-1, 36)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = self.dropout(F.relu(self.fc1(x)))
+        x = self.dropout(F.relu(self.fc2(x)))
         x = self.fc3(x)
 
         return x
 
-#model = Net()
-#print(model)
+model = Net(10)
+print(model)
 # print(model.layer1.weight)
 # print(model.layer1.weight.shape)
 # print(model.layer3.weight)
