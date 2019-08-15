@@ -416,3 +416,8 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         #     np.sum(val_class_correct), np.sum(val_class_total)))
 
 train_n_test('scratch.pt', None, learning_rate=0.01, data_size=2, no_of_lbc_layers=10, epochs=100)
+
+# cvimage = np.array(img, dtype=np.uint8)
+# cvimage = cv2.cvtColor(cvimage, cv2.COLOR_RGB2BGR)
+# cvgray = cv2.cvtColor(cvimage, cv2.COLOR_BGR2GRAY)
+# lbp = feature.local_binary_pattern(cvgray, 8, 1, method='default')
