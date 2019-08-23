@@ -34,7 +34,7 @@ def sampler_(labels, counts_array):
 
 def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no_of_lbc_layers=10, epochs=100):
     global graph
-    graph = plotter.VisdomLinePlotter(env_name='Plots')
+    graph = plotter.VisdomLinePlotter(env_name='Final Plots')
     outfile = open(output_file, "a")
     print("Learning rate=%f Data size=%d No. of LBCs=%d Epochs=%d\n" % (
         learning_rate, data_size, no_of_lbc_layers, epochs
@@ -87,8 +87,8 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     indices = list(range(num_train))
     np.random.shuffle(indices)
     #split = int(np.floor(valid_size * num_train))
-    train_idx, valid_idx = indices[:200], indices[200:250]
-    #train_idx, valid_idx = indices[:int(data_size * 0.8)], indices[int(data_size * 0.8):data_size]
+    #train_idx, valid_idx = indices[:200], indices[200:250]
+    train_idx, valid_idx = indices[:int(data_size * 0.8)], indices[int(data_size * 0.8):data_size]
     train_labels = [labels[x] for x in train_idx]
     #print(train_labels)
     val_labels = [labels[x] for x in valid_idx]
@@ -96,7 +96,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
 
     test_indices = list(range(len(test_data)))
     np.random.shuffle(test_indices)
-    test_idx = test_indices[:100]
+    test_idx = test_indices[:4000]
     test_sampler = SubsetRandomSampler(test_idx)
     test_loader = DataLoader(dataset=test_data, batch_size=batch_size, sampler=test_sampler, num_workers=num_workers)
     # define samplers for obtaining training and validation batches

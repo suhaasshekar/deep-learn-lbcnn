@@ -13,16 +13,22 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import datasets
 from PIL import Image
 from colour_demosaicing import demosaicing_CFA_Bayer_bilinear as demosaic
+from skimage import feature
 import matplotlib.pyplot as plt
-import lbcnn
+import cnn
 import torch.optim as optim
 import gc
 import plotter
+import cv2
 
 def load_image(image_path):
     img = Image.open(image_path)
     img = demosaic(img, 'gbrg')
-    im = Image.fromarray(np.uint8(img))
+    cvimage = np.array(img, dtype=np.uint8)
+    cvimage = cv2.cvtColor(cvimage, cv2.COLOR_RGB2BGR)
+    cvgray = cv2.cvtColor(cvimage, cv2.COLOR_BGR2GRAY)
+    lbp = feature.local_binary_pattern(cvgray, 8, 1, method='default')
+    im = Image.fromarray(np.uint8(lbp))
     return im
 
 def sampler_(labels, counts_array):
@@ -34,7 +40,7 @@ def sampler_(labels, counts_array):
 
 def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no_of_lbc_layers=10, epochs=100):
     global graph
-    graph = plotter.VisdomLinePlotter(env_name='Transfer Plots')
+    graph = plotter.VisdomLinePlotter(env_name='Baseline Plots')
     outfile = open(output_file, "a")
     print("Learning rate=%f Data size=%d No. of LBCs=%d Epochs=%d\n" % (
         learning_rate, data_size, no_of_lbc_layers, epochs
@@ -70,8 +76,8 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
-    DATA_PATH_TRAIN = Path("/home/ss20/transferdata")
-    DATA_PATH_TEST = Path("/home/ss20/transfertest")
+    DATA_PATH_TRAIN = Path("/home/ss20/dataset")
+    DATA_PATH_TEST = Path("/home/ss20/sample-data")
 
     train_data = datasets.ImageFolder(root=DATA_PATH_TRAIN, transform=transform, loader=load_image)
     # train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -113,24 +119,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     classes = train_data.classes
 
     # create a complete CNN
-    model = lbcnn.Net(no_of_lbc_layers)
-    transfer_model = './good/model_0.01_5000_3_300_dr03_3_class.pt'
-
-    model.load_state_dict(torch.load(transfer_model))
-    print(model)
-
-    # Freeze model weights
-    for param in model.parameters():
-        param.requires_grad = False
-
-    model.fc3 = nn.Sequential(
-        nn.Linear(64, 32),
-        nn.ReLU(),
-        nn.Dropout(0.3),
-        nn.Linear(32, 4)
-    )
-
-    print(model)
+    model = cnn.CNNNet()
 
     # move tensors to GPU if CUDA is available
     if train_on_gpu:
@@ -376,5 +365,5 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
 
     outfile.close()
 
-train_n_test(model_file='transfer1.pt', output_file='transfer.txt', learning_rate=0.01, data_size=1000,
+train_n_test(model_file='baseline.pt', output_file='baseline.txt', learning_rate=0.01, data_size=1000,
                          no_of_lbc_layers=3, epochs=100)

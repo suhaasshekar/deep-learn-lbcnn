@@ -164,8 +164,8 @@ class Net(nn.Module):
 
         return x
 
-model = Net(10)
-print(model)
+#model = Net(10)
+#print(model)
 # print(model.layer1.weight)
 # print(model.layer1.weight.shape)
 # print(model.layer3.weight)
