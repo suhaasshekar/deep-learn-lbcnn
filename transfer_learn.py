@@ -87,7 +87,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     indices = list(range(num_train))
     np.random.shuffle(indices)
     #split = int(np.floor(valid_size * num_train))
-    train_idx, valid_idx = indices[:500], indices[500:600]
+    train_idx, valid_idx = indices[:50], indices[50:100]
     #train_idx, valid_idx = indices[:int(data_size * 0.8)], indices[int(data_size * 0.8):data_size]
     train_labels = [labels[x] for x in train_idx]
     #print(train_labels)
@@ -96,7 +96,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
 
     test_indices = list(range(len(test_data)))
     np.random.shuffle(test_indices)
-    test_idx = test_indices[:200]
+    test_idx = test_indices[:50]
     test_sampler = SubsetRandomSampler(test_idx)
     test_loader = DataLoader(dataset=test_data, batch_size=batch_size, sampler=test_sampler, num_workers=num_workers)
     # define samplers for obtaining training and validation batches
@@ -114,7 +114,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
 
     # create a complete CNN
     model = lbcnn.Net(no_of_lbc_layers)
-    transfer_model = './good/model_0.01_20000_3_100_3_class.pt'
+    transfer_model = 'modelfinal_0.01_20000_3_100_dr03_3_class.pt'
 
     model.load_state_dict(torch.load(transfer_model))
     print(model)
@@ -127,7 +127,10 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         nn.Linear(64, 32),
         nn.ReLU(),
         nn.Dropout(0.3),
-        nn.Linear(32, 4)
+        nn.Linear(32, 16),
+        nn.ReLU(),
+        nn.Dropout(0.3),
+        nn.Linear(16, 4)
     )
 
     print(model)
@@ -376,5 +379,5 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
 
     outfile.close()
 
-train_n_test(model_file='transferfinal.pt', output_file='transferfinal.txt', learning_rate=0.01, data_size=1000,
-                         no_of_lbc_layers=3, epochs=100)
+train_n_test(model_file='transferfinalagain_dr03_e500_data50_b50_2l.pt', output_file='transferfinalagain_dr03_e500_data50_b50_2l.txt', learning_rate=0.01, data_size=1000,
+                         no_of_lbc_layers=3, epochs=500)

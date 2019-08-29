@@ -8,6 +8,7 @@ class Net(nn.Module):
 
     def __init__(self, no_of_lbc_layers):
         super(Net, self).__init__()
+        # kernel weights for 1st LBC layer
         self.weights_3_channel = torch.tensor([[[[0, 1, 0],
                                       [0, -1, 0],
                                       [0, 0, 0]],
@@ -88,6 +89,7 @@ class Net(nn.Module):
                                       [0, -1, 0],
                                       [0, 0, 0]]]], dtype=torch.float)
 
+        # kernels weights for LBC layers
         self.weights_1_channel = torch.tensor([[[[0, 1, 0],
                                         [0, -1, 0],
                                         [0, 0, 0]]],
@@ -166,7 +168,4 @@ class Net(nn.Module):
 
 #model = Net(10)
 #print(model)
-# print(model.layer1.weight)
-# print(model.layer1.weight.shape)
-# print(model.layer3.weight)
 

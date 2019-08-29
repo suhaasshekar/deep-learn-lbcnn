@@ -19,12 +19,14 @@ import torch.optim as optim
 import gc
 import plotter
 
+# function for image demosaicing
 def load_image(image_path):
     img = Image.open(image_path)
     img = demosaic(img, 'gbrg')
     im = Image.fromarray(np.uint8(img))
     return im
 
+# Calculate weights for weighted random sampler
 def sampler_(labels, counts_array):
     counts = np.array([len(np.where(labels == t)[0]) for t in counts_array])
     weights = torch.tensor([1.0 / x if x else 0 for x in counts], dtype=torch.float)
@@ -32,6 +34,7 @@ def sampler_(labels, counts_array):
     sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=False)
     return sampler
 
+# Training and Testing the network
 def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no_of_lbc_layers=10, epochs=100):
     global graph
     graph = plotter.VisdomLinePlotter(env_name='Final Plots')
@@ -45,7 +48,6 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     outfile.flush()
     #check if CUDA is available
     train_on_gpu = torch.cuda.is_available()
-    #train_on_gpu = False
 
     if not train_on_gpu:
         print('CUDA is not available.  Training on CPU ...')
@@ -61,7 +63,6 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     # how many samples per batch to load
     batch_size = 50
     # percentage of training set to use as validation
-    #valid_size = 0.2
 
     # convert data to a normalized torch.FloatTensor
     transform = transforms.Compose([
@@ -70,14 +71,13 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
+    # data path initialization
     DATA_PATH_TRAIN = Path("/home/ss20/dataset")
     DATA_PATH_TEST = Path("/home/ss20/sample-data")
 
+    # read train and test data
     train_data = datasets.ImageFolder(root=DATA_PATH_TRAIN, transform=transform, loader=load_image)
-    # train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-
     test_data = datasets.ImageFolder(root=DATA_PATH_TEST, transform=transform, loader=load_image)
-    #test_loader = DataLoader(dataset=test_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
     # obtain training indices that will be used for validation
     labels = [x[1] for x in train_data.samples]
@@ -86,19 +86,23 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     num_train = len(train_data)
     indices = list(range(num_train))
     np.random.shuffle(indices)
-    #split = int(np.floor(valid_size * num_train))
+
+    # split data for training and validation
     #train_idx, valid_idx = indices[:200], indices[200:250]
     train_idx, valid_idx = indices[:int(data_size * 0.8)], indices[int(data_size * 0.8):data_size]
     train_labels = [labels[x] for x in train_idx]
-    #print(train_labels)
+
+    # read class labels for sampling
     val_labels = [labels[x] for x in valid_idx]
     train_sampler, valid_sampler = sampler_(train_labels, counts_array), sampler_(val_labels, counts_array)
 
+    # randomize test data
     test_indices = list(range(len(test_data)))
     np.random.shuffle(test_indices)
-    test_idx = test_indices[:4000]
+    test_idx = test_indices[:200]
     test_sampler = SubsetRandomSampler(test_idx)
     test_loader = DataLoader(dataset=test_data, batch_size=batch_size, sampler=test_sampler, num_workers=num_workers)
+
     # define samplers for obtaining training and validation batches
     # train_sampler = SubsetRandomSampler(train_idx)
     # valid_sampler = SubsetRandomSampler(valid_idx)
@@ -112,9 +116,9 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     # specify the image classes
     classes = train_data.classes
 
-    # create a complete CNN
+    # create a complete LBCNN
     model = lbcnn.Net(no_of_lbc_layers)
-    #print(model)
+
 
     # move tensors to GPU if CUDA is available
     if train_on_gpu:
@@ -155,33 +159,21 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
             # clear the gradients of all optimized variables
             optimizer.zero_grad()
             # forward pass: compute predicted outputs by passing inputs to the model
-
             output = model(data)
-            #print("output", output)
-            counter += batch_size
-            #print("Trained - %d" % counter)
-
             # calculate the batch loss
             loss = criterion(output, target)
-            #print("loss", loss)
             # backward pass: compute gradient of the loss with respect to model parameters
             loss.backward()
             # perform a single optimization step (parameter update)
             optimizer.step()
             # update training loss
-            #print("loss.item", loss.item(), data.size(0))
             train_loss += loss.item() * data.size(0)
 
             # convert output probabilites to predicted class
             _, pred = torch.max(output, 1)
-            #print("torch.max", torch.max(output, 1))
             # compare predictions to true label
             correct_tensor = pred.eq(target.data.view_as(pred))
-            #print(target)
-            #print(pred)
-            #print("correct tensor, pred.eq", correct_tensor, target.data.view_as(pred))
             correct = np.squeeze(correct_tensor.numpy()) if not train_on_gpu else np.squeeze(correct_tensor.cpu().numpy())
-            #print("correct", correct)
             # calculate test accuracy for each object class
             for i in range(batch_size):
                 label = target.data[i]
@@ -207,7 +199,6 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
                 loss = criterion(output, target)
                 # update average validation loss
                 valid_loss += loss.item() * data.size(0)
-
                 # convert output probabilities to predicted class
                 _, pred = torch.max(output, 1)
                 # compare predictions to true label
@@ -278,7 +269,6 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
                 outfile.write('Val Accuracy of %5s: N/A (no training examples)' % (classes[i]))
                 outfile.flush()
 
-
         print('\nTrain Accuracy (Overall): %2d%% (%2d/%2d)' % (
             100. * np.sum(class_correct) / np.sum(class_total),
             np.sum(class_correct), np.sum(class_total)))
@@ -301,6 +291,7 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     class_correct = list(0. for i in range(no_of_classes))
     class_total = list(0. for i in range(no_of_classes))
 
+    # load saved model parameters for testing
     model.load_state_dict(torch.load(model_file))
     print('Load saved model for testing...')
     print('Testing the model..')
