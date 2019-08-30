@@ -70,8 +70,8 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
 
-    DATA_PATH_TRAIN = Path("/home/ss20/transferdata")
-    DATA_PATH_TEST = Path("/home/ss20/transfertest")
+    DATA_PATH_TRAIN = Path("./dataset/train")
+    DATA_PATH_TEST = Path("./dataset/test")
 
     train_data = datasets.ImageFolder(root=DATA_PATH_TRAIN, transform=transform, loader=load_image)
     # train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)

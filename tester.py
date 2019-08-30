@@ -44,7 +44,7 @@ transform = transforms.Compose([
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
-DATA_PATH_TEST = Path("/home/ss20/sample-data")
+DATA_PATH_TEST = Path("./dataset/test")
 
 test_data = datasets.ImageFolder(root=DATA_PATH_TEST, transform=transform, loader=load_image)
 

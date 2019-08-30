@@ -72,8 +72,8 @@ def train_n_test(model_file, output_file, learning_rate=0.01, data_size=5000, no
     ])
 
     # data path initialization
-    DATA_PATH_TRAIN = Path("/home/ss20/dataset")
-    DATA_PATH_TEST = Path("/home/ss20/sample-data")
+    DATA_PATH_TRAIN = Path("./dataset/train")
+    DATA_PATH_TEST = Path("./dataset/test")
 
     # read train and test data
     train_data = datasets.ImageFolder(root=DATA_PATH_TRAIN, transform=transform, loader=load_image)
